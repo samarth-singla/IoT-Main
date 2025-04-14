@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Route, Routes, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, Routes, Route, useNavigate } from 'react-router-dom';
 import PatientDetail from './PatientDetail';
+import AddPatientPage from './AddPatientPage';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -10,11 +11,13 @@ const Dashboard = () => {
   const [doctor, setDoctor] = useState(null);
   const hospitalName = "MediCare General Hospital";
 
+  // Dark mode effect
   useEffect(() => {
     document.body.classList.toggle('dark-mode', darkMode);
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
+  // Clock effect - separated from other state updates
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -22,80 +25,80 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Data fetching effect
   useEffect(() => {
-    const fetchPatients = async () => {
+    const fetchData = async () => {
       try {
-        // Updated endpoint to match your backend routes
         const response = await fetch('http://localhost:8000/');
         if (!response.ok) {
-          throw new Error('Failed to fetch patients');
+          throw new Error('Failed to fetch data');
         }
-        const data = await response.json();
-        setPatients(data);
-      } catch (error) {
-        console.error("Error fetching patients:", error);
-      }
-    };
 
-    const fetchDoctor = async () => {
-      try {
-        // Updated endpoint to match your backend routes
-        const response = await fetch('http://localhost:8000');
-        if (!response.ok) {
-          throw new Error('Failed to fetch doctor info');
-        }
-        const data = await response.json();
-        setDoctor(data);
+        const patientsData = await response.json();
+        console.log('Fetched patients:', patientsData); // Debug log
+        setPatients(patientsData);
       } catch (error) {
-        console.error("Error fetching doctor info:", error);
+        console.error("Error fetching data:", error);
       }
     };
     
-    fetchPatients();
-    fetchDoctor();
+    fetchData();
   }, []);
 
-  const getStatusColor = (status) => {
+  // Memoize functions and values that don't need to change on every render
+  const getStatusColor = useMemo(() => (status) => {
     switch(status) {
       case 'critical': return 'status-critical';
       case 'needs attention': return 'status-attention';
       case 'normal': return 'status-normal';
       default: return '';
     }
-  };
+  }, []);
 
-  const formatDate = (date) => {
+  const formatDate = useMemo(() => (date) => {
     return date.toLocaleDateString('en-US', {
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
     });
-  };
+  }, []);
 
-  const HomePage = () => (
-    <>
-      <div className="dashboard-header">
-        <h2>Patient Dashboard</h2>
-      </div>
-      
-      <div className="patients-grid">
-        {patients.length > 0 ? (
-          patients.map(patient => (
-            <Link to={`/patient/${patient.patient_id}`} key={patient._id}>
-              <div className={`patient-card ${getStatusColor(patient.status)}`}>
-                <h3>{patient.name}</h3>
-                <p>ID: {patient.unique_id}</p>
-                <p className="status">Status: {patient.status || 'N/A'}</p>
-              </div>
-            </Link>
-          ))
-        ) : (
-          <p>No patients found</p>
-        )}
-      </div>
-    </>
-  );
+  const HomePage = () => {
+    const navigate = useNavigate();
+    
+    return (
+      <>
+        <div className="dashboard-header">
+          <div className="header-content">
+            <h2>Patient Dashboard</h2>
+            <button 
+              className="add-patient-btn"
+              onClick={() => navigate('/add-patient')}
+            >
+              Add New Patient
+            </button>
+          </div>
+        </div>
+        
+        <div className="patients-grid">
+          {patients.length > 0 ? (
+            patients.map(patient => (
+              <Link to={`/patient/${patient.unique_id}`} key={patient._id}>
+                <div className={`patient-card ${getStatusColor(patient.status)}`}>
+                  <h3>{patient.name}</h3>
+                  <p>ID: {patient.unique_id}</p>
+                  <p className="status">Status: {patient.status || 'N/A'}</p>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <p>No patients found</p>
+          )}
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="dashboard-container">
@@ -130,7 +133,8 @@ const Dashboard = () => {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/:id" element={<PatientDetail />} />
+          <Route path="/add-patient" element={<AddPatientPage />} />
+          <Route path="/patient/:id" element={<PatientDetail />} />
         </Routes>
       </main>
     </div>

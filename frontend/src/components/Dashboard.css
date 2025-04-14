@@ -1,33 +1,61 @@
 /* Dashboard.css - Enhanced Design */
 :root {
-    --primary-color: #1e3a5f;
-    --secondary-color: #3498db;
-    --accent-color: #16a085;
-    --text-color: #333;
-    --bg-color: #f5f7fa;
-    --card-bg: #ffffff;
-    --sidebar-bg: linear-gradient(to bottom, #1e3a5f, #2c3e50);
-    --sidebar-text: #ecf0f1;
-    --critical-color: #e74c3c;
-    --attention-color: #f39c12;
-    --normal-color: #2ecc71;
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --card-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-    --border-radius: 12px;
-  }
+  /* Base colors */
+  --primary-color: #2196f3;
+  --secondary-color: #1976d2;
+  --accent-color: #00e676;
+  
+  /* Background colors */
+  --bg-color: #121212;
+  --card-bg: #1e1e1e;
+  --panel-bg: #252525;
+  
+  /* Text colors */
+  --text-primary: #ffffff;
+  --text-secondary: #b3b3b3;
+  --text-muted: #757575;
+  
+  /* Status colors */
+  --success: #00e676;
+  --warning: #ffd600;
+  --danger: #ff1744;
+  --info: #00b0ff;
+  
+  /* Vital signs specific colors */
+  --temp: #ff5252;      /* Temperature - warm red */
+  --pulse: #ff4081;     /* Heart rate - pink */
+  --bp: #40c4ff;        /* Blood pressure - light blue */
+  --spo2: #64ffda;      /* SpO2 - teal */
+  --ecg: #69f0ae;       /* ECG line - bright green */
+  
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #2196f3, #1976d2);
+  --gradient-success: linear-gradient(135deg, #00e676, #00c853);
+  --gradient-warning: linear-gradient(135deg, #ffd600, #ffc400);
+  --gradient-danger: linear-gradient(135deg, #ff1744, #d50000);
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
+  
+  /* Border colors */
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-medium: rgba(255, 255, 255, 0.15);
+}
   
   .dark-mode {
-    --primary-color: #1a2639;
-    --secondary-color: #2a7aaf;
-    --accent-color: #16a085;
-    --text-color: #ecf0f1;
+    --primary-color: #64b5f6;  /* Lighter blue for better visibility */
+    --secondary-color: #90caf9;
+    --accent-color: #4db6ac;
+    --text-color: #e0e0e0;
     --bg-color: #121212;
     --card-bg: #1e272e;
     --sidebar-bg: linear-gradient(to bottom, #0f1923, #1a2639);
-    --sidebar-text: #ecf0f1;
-    --critical-color: #c0392b;
-    --attention-color: #d35400;
-    --normal-color: #27ae60;
+    --sidebar-text: #ffffff;
+    --critical-color: #ff5252;
+    --attention-color: #ffd740;
+    --normal-color: #69f0ae;
     --shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     --card-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
   }
@@ -82,15 +110,17 @@
   }
   
   .doctor-details h2 {
+    color: var(--sidebar-text);
     font-size: 1.2rem;
     margin: 5px 0;
     font-weight: 600;
   }
   
   .doctor-details p {
+    color: var(--sidebar-text);
+    opacity: 0.9;  /* Increased opacity for better visibility */
     margin: 5px 0;
     font-size: 0.9rem;
-    opacity: 0.8;
   }
   
   .clock-widget {
@@ -116,6 +146,8 @@
   
   .theme-toggle {
     margin-top: auto;
+    margin-bottom: 40px;  /* Added margin to move button up */
+    padding: 0 20px;
   }
   
   .theme-toggle button {
@@ -141,7 +173,7 @@
   .main-content {
     flex: 1;
     padding: 30px;
-    margin-left: 280px;
+    margin-left: 300px;  /* Increased from 280px to create more gap */
     overflow-y: auto;
   }
   
@@ -150,17 +182,18 @@
   }
   
   .dashboard-header h2 {
-    font-size: 2rem;
     color: var(--primary-color);
+    font-size: 2rem;
     font-weight: 600;
     margin-top: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 30px;
   }
   
   .patients-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 25px;
+    gap: 30px;  /* Increased gap between cards */
+    padding: 20px 0;  /* Added vertical padding */
   }
   
   .patient-card {
@@ -173,6 +206,10 @@
     position: relative;
     overflow: hidden;
     border-left: none;
+  }
+
+  .dark-mode .patient-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);  /* Added subtle border in dark mode */
   }
   
   .patient-card::before {
@@ -214,6 +251,7 @@
     margin: 8px 0;
     font-size: 0.95rem;
     line-height: 1.5;
+    color: var(--text-color);  /* Added explicit color */
   }
   
   .status {
@@ -226,24 +264,53 @@
     font-size: 0.85rem !important;
   }
   
-  .status-critical .status {
-    color: var(--critical-color);
-    background-color: rgba(231, 76, 60, 0.1);
+  .dark-mode .status-critical .status {
+    color: #ff5252;  /* Brighter red for dark mode */
+    background-color: rgba(255, 82, 82, 0.2);
   }
   
-  .status-attention .status {
-    color: var(--attention-color);
-    background-color: rgba(243, 156, 18, 0.1);
+  .dark-mode .status-attention .status {
+    color: #ffd740;  /* Brighter yellow for dark mode */
+    background-color: rgba(255, 215, 64, 0.2);
   }
   
-  .status-normal .status {
-    color: var(--normal-color);
-    background-color: rgba(46, 204, 113, 0.1);
+  .dark-mode .status-normal .status {
+    color: #69f0ae;  /* Brighter green for dark mode */
+    background-color: rgba(105, 240, 174, 0.2);
   }
   
   a {
     text-decoration: none;
     color: inherit;
+  }
+  
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+
+  .add-patient-btn {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+    box-shadow: var(--shadow);
+  }
+
+  .add-patient-btn:hover {
+    background-color: #148f77;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .dark-mode .add-patient-btn {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
   }
   
   @media (max-width: 768px) {
@@ -255,6 +322,7 @@
     
     .main-content {
       margin-left: 0;
+      padding: 20px;
     }
     
     .patients-grid {
