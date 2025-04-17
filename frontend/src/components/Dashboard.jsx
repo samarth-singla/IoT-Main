@@ -4,6 +4,35 @@ import PatientDetail from './PatientDetail';
 import AddPatientPage from './AddPatientPage';
 import './Dashboard.css';
 
+// For demo purposes: Get a simulated alert level based on patient unique_id
+const getSimulatedAlertLevel = (patientId) => {
+  // Convert ID to string then to number for consistency
+  const idNum = parseInt(patientId.toString());
+  
+  // Use modulo to get values 0, 1, 2
+  // IDs ending with 0,3,6,9 will show Normal (0)
+  // IDs ending with 1,4,7 will show Moderate Risk (1)
+  // IDs ending with 2,5,8 will show High Risk (2)
+  const lastDigit = idNum % 10;
+  
+  if (lastDigit === 1 || lastDigit === 4 || lastDigit === 7) {
+    return 1; // Moderate Risk
+  } else if (lastDigit === 2 || lastDigit === 5 || lastDigit === 8) {
+    return 2; // High Risk
+  } else {
+    return 0; // Normal
+  }
+};
+
+// Get alert status text from alert level
+const getAlertStatusText = (alertLevel) => {
+  switch(alertLevel) {
+    case 1: return "Moderate Risk";
+    case 2: return "High Risk";
+    default: return "Normal";
+  }
+};
+
 const Dashboard = () => {
   const [darkMode, setDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -35,8 +64,16 @@ const Dashboard = () => {
         }
 
         const patientsData = await response.json();
-        console.log('Fetched patients:', patientsData); // Debug log
-        setPatients(patientsData);
+        
+        // Add simulated alert levels to patients for demo purposes
+        const patientsWithAlerts = patientsData.map(patient => ({
+          ...patient,
+          alertLevel: getSimulatedAlertLevel(patient.unique_id),
+          alertStatus: getAlertStatusText(getSimulatedAlertLevel(patient.unique_id))
+        }));
+        
+        console.log('Fetched patients:', patientsWithAlerts); // Debug log
+        setPatients(patientsWithAlerts);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -46,7 +83,18 @@ const Dashboard = () => {
   }, []);
 
   // Memoize functions and values that don't need to change on every render
-  const getStatusColor = useMemo(() => (status) => {
+  const getStatusColor = useMemo(() => (status, alertLevel) => {
+    // If alert level is provided, it takes precedence
+    if (alertLevel !== undefined) {
+      switch(alertLevel) {
+        case 2: return 'status-critical';
+        case 1: return 'status-attention';
+        case 0: return 'status-normal';
+        default: return '';
+      }
+    }
+    
+    // Fall back to regular status if alert level not available
     switch(status) {
       case 'critical': return 'status-critical';
       case 'needs attention': return 'status-attention';
@@ -84,11 +132,18 @@ const Dashboard = () => {
         <div className="patients-grid">
           {patients.length > 0 ? (
             patients.map(patient => (
-              <Link to={`/patient/${patient.unique_id}`} key={patient._id}>
-                <div className={`patient-card ${getStatusColor(patient.status)}`}>
+              <Link to={`/patient/${patient.unique_id}`} key={patient.id}>
+                <div className={`patient-card ${getStatusColor(patient.status, patient.alertLevel)}`}>
                   <h3>{patient.name}</h3>
                   <p>ID: {patient.unique_id}</p>
-                  <p className="status">Status: {patient.status || 'N/A'}</p>
+                  <p className={`status ${patient.alertLevel === 2 ? 'critical' : patient.alertLevel === 1 ? 'warning' : 'normal'}`}>
+                    Status: {patient.alertStatus || 'Normal'}
+                  </p>
+                  {patient.alertLevel > 0 && (
+                    <div className={`alert-badge ${patient.alertLevel === 2 ? 'high-risk' : 'moderate-risk'}`}>
+                      {patient.alertLevel === 1 ? 'MODERATE RISK' : 'HIGH RISK'}
+                    </div>
+                  )}
                 </div>
               </Link>
             ))
