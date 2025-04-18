@@ -133,7 +133,7 @@ class HeartAttackDetector:
             return None
         
     def send_alert_to_thingspeak(self):
-        """Send alert status to ThingSpeak field2 (0=normal, 1=moderate, 2=high)"""
+        """Send alert status to ThingSpeak field2 (0=normal, 1=moderate, 2=high) without affecting other fields"""
         if not hasattr(self, 'risk_scores') or len(self.risk_scores) == 0:
             print("No risk scores available to send")
             return False
@@ -146,23 +146,40 @@ class HeartAttackDetector:
             'Moderate': 1,
             'High': 2
         }.get(risk_level, 0)
-        
-        url = "https://api.thingspeak.com/update.json"
+
+        # Get the latest data point to preserve other field values
+        latest_data = self.df.iloc[-1] if hasattr(self, 'df') and len(self.df) > 0 else None
+
+        # Prepare parameters, only including field2 for the update
         params = {
             "api_key": self.write_api_key,
-            "field2": alert_status  # Using field2 for alert status
+            "field2": alert_status
         }
+
+        # If we have latest data, add other fields to preserve their values
+        if latest_data is not None:
+            field_mapping = {
+                'temperature': 'field1',
+                'heart_rate': 'field3',
+                'spo2': 'field4',
+                'latitude': 'field5',
+                'longitude': 'field6',
+                'ecg_avg': 'field7'
+            }
+            
+            for field_name, thingspeak_field in field_mapping.items():
+                if field_name in latest_data and not pd.isna(latest_data[field_name]):
+                    params[thingspeak_field] = latest_data[field_name]
+
+        url = "https://api.thingspeak.com/update.json"
         
         try:
-            response = requests.get(url, params=params)
-            if response.status_code == 200:
-                print(f"Sent alert status {alert_status} ({risk_level}) to ThingSpeak field2")
-                return True
-            else:
-                print(f"Failed to send alert. Status code: {response.status_code}")
-                return False
+            response = requests.post(url, params=params)
+            response.raise_for_status()
+            print(f"Alert status {alert_status} sent successfully")
+            return True
         except Exception as e:
-            print(f"Error sending to ThingSpeak: {e}")
+            print(f"Error sending alert status: {e}")
             return False
     
     def extract_ecg_features(self):
