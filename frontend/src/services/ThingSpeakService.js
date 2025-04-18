@@ -1,4 +1,3 @@
-
 /**
  * ThingSpeak API Service
  * Handles fetching data from ThingSpeak channels
@@ -60,7 +59,7 @@ const calculateBP = (ecgSamples, spo2) => {
  * Maps the raw ThingSpeak data to patient vital signs
  * Field mapping:
  * field1: Temperature (°C)
- * field2: Humidity (%)
+ * field2: Emergency Alert Level (0: Normal, 1: Moderate Risk, 2: High Risk)
  * field3: Heart Rate (BPM)
  * field4: SpO2 (%)
  * field5: Latitude
@@ -77,7 +76,7 @@ export const mapThingSpeakToPatientVitals = (data) => {
   
   // Convert string values to numbers
   const temperature = parseFloat(latestEntry.field1);
-  const humidity = parseFloat(latestEntry.field2);
+  const alertLevel = parseInt(latestEntry.field2);
   const heartRate = parseFloat(latestEntry.field3);
   const spo2 = parseFloat(latestEntry.field4);
   const latitude = parseFloat(latestEntry.field5);
@@ -91,7 +90,7 @@ export const mapThingSpeakToPatientVitals = (data) => {
   return {
     vitals: {
       temperature: isNaN(temperature) ? "--" : temperature.toFixed(1),
-      humidity: isNaN(humidity) ? "--" : humidity.toFixed(1),
+      alertLevel: isNaN(alertLevel) ? 0 : alertLevel,
       heartRate: isNaN(heartRate) ? "--" : Math.round(heartRate),
       spo2: isNaN(spo2) ? "--" : Math.round(spo2),
       avgEcg: isNaN(avgEcg) ? "--" : avgEcg,
@@ -108,7 +107,8 @@ export const mapThingSpeakToPatientVitals = (data) => {
       heartRate: heartRate > 100 ? "Elevated" : heartRate < 60 ? "Low" : "Normal",
       spo2: spo2 < 95 ? "Low" : "Normal",
       bp: bp.systolic > 140 || bp.diastolic > 90 ? "Elevated" : 
-          bp.systolic < 90 || bp.diastolic < 60 ? "Low" : "Normal"
+          bp.systolic < 90 || bp.diastolic < 60 ? "Low" : "Normal",
+      alert: alertLevel === 0 ? "Normal" : alertLevel === 1 ? "Moderate Risk" : "High Risk"
     },
     lastUpdated: new Date(latestEntry.created_at).toLocaleString()
   };
