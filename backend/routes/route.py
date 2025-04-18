@@ -68,9 +68,20 @@ async def put_todo(id: str, todo: Todo):
 @router.delete("/{id}")
 async def delete_node(id: str):
     try:
+        # First try to delete by ObjectId
         result = collection_name.find_one_and_delete({"_id": ObjectId(id)})
         if result is None:
-            raise HTTPException(status_code=404, detail="Item not found")
+            # If not found, try deleting by unique_id
+            result = collection_name.find_one_and_delete({"unique_id": int(id)})
+            if result is None:
+                raise HTTPException(status_code=404, detail="Patient not found")
+        return {"message": "Patient deleted successfully"}
+    except ValueError:
+        # If id can't be converted to int, try as unique_id string
+        result = collection_name.find_one_and_delete({"unique_id": id})
+        if result is None:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        return {"message": "Patient deleted successfully"}
     except PyMongoError as e:
         raise HTTPException(status_code=500, detail="Database error")
 

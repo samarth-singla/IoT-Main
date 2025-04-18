@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Line } from 'react-chartjs-2';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { getPatientVitals, downloadThingSpeakDataAsCSV, fetchHistoricalData } from '../services/ThingSpeakService';
@@ -44,6 +44,7 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 const PatientDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [patientData, setPatientData] = useState(null);
   const [patientDetails, setPatientDetails] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,62 @@ const PatientDetail = () => {
   const [historicalData, setHistoricalData] = useState(null);
   const [loadingHistorical, setLoadingHistorical] = useState(true);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
+
+  // Add this function to handle patient deletion
+  const handleDeletePatient = async () => {
+    const isConfirmed = window.confirm(
+      "Are you sure you want to delete this patient? This action cannot be undone."
+    );
+
+    if (!isConfirmed) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to delete patient');
+      }
+
+      // Show success message
+      alert('Patient deleted successfully');
+      
+      // Navigate back to dashboard after successful deletion
+      navigate('/');
+    } catch (error) {
+      console.error('Error deleting patient:', error);
+      alert(error.message || 'Failed to delete patient. Please try again.');
+    }
+  };
+
+  // Add this CSS at the top of your component, near other button styles
+  const deleteButtonStyle = {
+    backgroundColor: '#dc3545',
+    color: 'white',
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    marginTop: '20px',
+    transition: 'background-color 0.2s',
+  };
+
+  // Render delete button separately so it can be reused
+  const DeleteButton = () => (
+    <div style={{ marginTop: '20px', textAlign: 'right' }}>
+      <button
+        onClick={handleDeletePatient}
+        style={deleteButtonStyle}
+        onMouseOver={(e) => e.target.style.backgroundColor = '#bb2d3b'}
+        onMouseOut={(e) => e.target.style.backgroundColor = '#dc3545'}
+      >
+        Delete Patient
+      </button>
+    </div>
+  );
 
   // ECG Chart configuration
   const ecgChartOptions = {
@@ -158,6 +215,7 @@ const PatientDetail = () => {
     }
   };
 
+<<<<<<< HEAD
   // Handle CSV download
   const handleDownloadCSV = async () => {
     if (!id) return;
@@ -198,6 +256,37 @@ const PatientDetail = () => {
   if (loading) return <div className="loading">Loading patient data...</div>;
   if (error) return <div className="error"><h3>Error loading patient data</h3><p>{error}</p></div>;
   if (!patientData) return <div className="error">No patient data available</div>;
+=======
+  if (loading) {
+    return (
+      <div>
+        <div className="loading">Loading patient data...</div>
+        <DeleteButton />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <div className="error">
+          <h3>Error loading patient data</h3>
+          <p>{error}</p>
+        </div>
+        <DeleteButton />
+      </div>
+    );
+  }
+
+  if (!patientData) {
+    return (
+      <div>
+        <div className="error">No patient data available</div>
+        <DeleteButton />
+      </div>
+    );
+  }
+>>>>>>> 2f801c7f2035a6a7befaddb27c71e4412d6d79c8
 
   // Helper function to determine temperature status
   const getTemperatureStatus = (temp) => {
@@ -482,6 +571,7 @@ const PatientDetail = () => {
             </div>
           </div>
         </div>
+        <DeleteButton />
       </div>
 
       {/* Manual Alert Controls */}
@@ -566,8 +656,13 @@ const PatientDetail = () => {
             <h3>Average ECG</h3>
             <p className="value">
               {typeof patientData.vitals.avgEcg === 'number' 
+<<<<<<< HEAD
                 ? patientData.vitals.avgEcg.toFixed(2) 
                 : patientData.vitals.avgEcg} mV
+=======
+                ? `${patientData.vitals.avgEcg.toFixed(2)} mV`
+                : 'N/A'}
+>>>>>>> 2f801c7f2035a6a7befaddb27c71e4412d6d79c8
             </p>
           </div>
 

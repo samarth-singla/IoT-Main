@@ -773,6 +773,7 @@ body.dark-mode .manual-alert-controls {
   }
 }
 
+<<<<<<< HEAD
 .vital-signs-header {
   display: flex;
   justify-content: space-between;
@@ -983,4 +984,26 @@ body.dark-mode .chart-container {
   .weekly-records-section .historical-charts-grid {
     grid-template-columns: repeat(2, 4cm);
   }
+=======
+/* Add these styles to your existing CSS */
+.delete-patient-button {
+  background-color: #dc3545;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 20px;
+  transition: background-color 0.2s;
+}
+
+.delete-patient-button:hover {
+  background-color: #bb2d3b;
+}
+
+.delete-patient-container {
+  margin-top: 20px;
+  text-align: right;
+>>>>>>> 2f801c7f2035a6a7befaddb27c71e4412d6d79c8
 }

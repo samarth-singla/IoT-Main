@@ -38,7 +38,52 @@ const Dashboard = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [patients, setPatients] = useState([]);
   const [doctor, setDoctor] = useState(null);
+  const [contextMenu, setContextMenu] = useState({
+    show: false,
+    x: 0,
+    y: 0,
+    patientId: null
+  });
   const hospitalName = "MediCare General Hospital";
+
+  // Add this function to handle patient deletion
+  const handleDeletePatient = async (patientId) => {
+    const isConfirmed = window.confirm(
+      "Are you sure you want to delete this patient? This action cannot be undone."
+    );
+
+    if (!isConfirmed) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/${patientId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to delete patient');
+      }
+
+      // Update the patients list after successful deletion
+      setPatients(patients.filter(patient => patient.unique_id !== patientId));
+      
+      // Show success message
+      alert('Patient deleted successfully');
+    } catch (error) {
+      console.error('Error deleting patient:', error);
+      alert(error.message || 'Failed to delete patient. Please try again.');
+    } finally {
+      // Hide the context menu
+      setContextMenu({ show: false, x: 0, y: 0, patientId: null });
+    }
+  };
+
+  // Add click handler to hide context menu when clicking outside
+  useEffect(() => {
+    const handleClick = () => setContextMenu({ show: false, x: 0, y: 0, patientId: null });
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
 
   // Dark mode effect
   useEffect(() => {
@@ -115,6 +160,16 @@ const Dashboard = () => {
   const HomePage = () => {
     const navigate = useNavigate();
     
+    const handleContextMenu = (e, patientId) => {
+      e.preventDefault();
+      setContextMenu({
+        show: true,
+        x: e.pageX,
+        y: e.pageY,
+        patientId
+      });
+    };
+
     return (
       <>
         <div className="dashboard-header">
@@ -132,25 +187,49 @@ const Dashboard = () => {
         <div className="patients-grid">
           {patients.length > 0 ? (
             patients.map(patient => (
-              <Link to={`/patient/${patient.unique_id}`} key={patient.id}>
-                <div className={`patient-card ${getStatusColor(patient.status, patient.alertLevel)}`}>
-                  <h3>{patient.name}</h3>
-                  <p>ID: {patient.unique_id}</p>
-                  <p className={`status ${patient.alertLevel === 2 ? 'critical' : patient.alertLevel === 1 ? 'warning' : 'normal'}`}>
-                    Status: {patient.alertStatus || 'Normal'}
-                  </p>
-                  {patient.alertLevel > 0 && (
-                    <div className={`alert-badge ${patient.alertLevel === 2 ? 'high-risk' : 'moderate-risk'}`}>
-                      {patient.alertLevel === 1 ? 'MODERATE RISK' : 'HIGH RISK'}
-                    </div>
-                  )}
-                </div>
-              </Link>
+              <div 
+                key={patient.id}
+                onContextMenu={(e) => handleContextMenu(e, patient.unique_id)}
+              >
+                <Link to={`/patient/${patient.unique_id}`}>
+                  <div className={`patient-card ${getStatusColor(patient.status, patient.alertLevel)}`}>
+                    <h3>{patient.name}</h3>
+                    <p>ID: {patient.unique_id}</p>
+                    <p className={`status ${patient.alertLevel === 2 ? 'critical' : patient.alertLevel === 1 ? 'warning' : 'normal'}`}>
+                      Status: {patient.alertStatus || 'Normal'}
+                    </p>
+                    {patient.alertLevel > 0 && (
+                      <div className={`alert-badge ${patient.alertLevel === 2 ? 'high-risk' : 'moderate-risk'}`}>
+                        {patient.alertLevel === 1 ? 'MODERATE RISK' : 'HIGH RISK'}
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              </div>
             ))
           ) : (
             <p>No patients found</p>
           )}
         </div>
+
+        {/* Context Menu */}
+        {contextMenu.show && (
+          <div 
+            className="context-menu"
+            style={{ 
+              position: 'fixed',
+              top: contextMenu.y,
+              left: contextMenu.x,
+            }}
+          >
+            <button 
+              onClick={() => handleDeletePatient(contextMenu.patientId)}
+              className="context-menu-item delete"
+            >
+              Delete Patient
+            </button>
+          </div>
+        )}
       </>
     );
   };
