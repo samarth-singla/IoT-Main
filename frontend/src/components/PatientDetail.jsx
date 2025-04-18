@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Line } from 'react-chartjs-2';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { getPatientVitals } from '../services/ThingSpeakService';
+import { getPatientVitals, downloadThingSpeakDataAsCSV, fetchHistoricalData } from '../services/ThingSpeakService';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,8 +11,10 @@ import {
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  TimeScale
 } from 'chart.js';
+import 'chartjs-adapter-date-fns'; // Add this import for time scale
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -27,7 +29,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  TimeScale
 );
 
 const DefaultIcon = L.icon({
@@ -46,6 +49,10 @@ const PatientDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [manualAlertLevel, setManualAlertLevel] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [historicalData, setHistoricalData] = useState(null);
+  const [loadingHistorical, setLoadingHistorical] = useState(true);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
 
   // ECG Chart configuration
   const ecgChartOptions = {
@@ -151,6 +158,43 @@ const PatientDetail = () => {
     }
   };
 
+  // Handle CSV download
+  const handleDownloadCSV = async () => {
+    if (!id) return;
+    
+    try {
+      setIsDownloading(true);
+      await downloadThingSpeakDataAsCSV(
+        id, 
+        `patient_${id}_data_${new Date().toISOString().slice(0,10)}.csv`, 
+        7  // Get 7 days of data
+      );
+      setIsDownloading(false);
+    } catch (error) {
+      console.error('Error downloading CSV data:', error);
+      setIsDownloading(false);
+    }
+  };
+
+  // Fetch historical data
+  useEffect(() => {
+    const getHistoricalData = async () => {
+      if (!id) return;
+
+      try {
+        setLoadingHistorical(true);
+        const data = await fetchHistoricalData(id, 7); // Get 7 days of data
+        setHistoricalData(data.formatted);
+        setLoadingHistorical(false);
+      } catch (error) {
+        console.error('Error fetching historical data:', error);
+        setLoadingHistorical(false);
+      }
+    };
+
+    getHistoricalData();
+  }, [id]);
+
   if (loading) return <div className="loading">Loading patient data...</div>;
   if (error) return <div className="error"><h3>Error loading patient data</h3><p>{error}</p></div>;
   if (!patientData) return <div className="error">No patient data available</div>;
@@ -194,6 +238,200 @@ const PatientDetail = () => {
   const effectiveAlertLevel = manualAlertLevel !== null ? manualAlertLevel : patientData.vitals.alertLevel;
   const alertStatusText = effectiveAlertLevel === 0 ? "Normal" : 
                           effectiveAlertLevel === 1 ? "Moderate Risk" : "High Risk";
+
+  // Chart options for historical data
+  const getHistoricalChartOptions = (title, yAxisLabel, color) => {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: {
+          display: false,
+          labels: {
+            font: {
+              size: 8
+            }
+          }
+        },
+        title: {
+          display: false,
+          text: title,
+          color: 'rgb(100, 100, 100)',
+          font: {
+            size: 9,
+          },
+          padding: {
+            top: 0,
+            bottom: 2
+          }
+        },
+        tooltip: {
+          enabled: true,
+          titleFont: {
+            size: 9
+          },
+          bodyFont: {
+            size: 9
+          },
+          titleMarginBottom: 2,
+          padding: {
+            top: 4,
+            bottom: 4,
+            left: 6,
+            right: 6
+          },
+          callbacks: {
+            title: (tooltipItems) => {
+              const date = new Date(tooltipItems[0].parsed.x);
+              return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: 'minute',
+            displayFormats: {
+              minute: 'HH:mm'
+            },
+            tooltipFormat: 'HH:mm'
+          },
+          title: {
+            display: false
+          },
+          ticks: {
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 2, // Only show start and end points
+            font: {
+              size: 7
+            },
+            padding: 0,
+            display: false // Hide x-axis ticks completely
+          },
+          grid: {
+            display: false
+          },
+          border: {
+            display: false
+          }
+        },
+        y: {
+          title: {
+            display: false
+          },
+          beginAtZero: false,
+          ticks: {
+            font: {
+              size: 7
+            },
+            maxTicksLimit: 3,
+            padding: 0
+          },
+          grid: {
+            color: 'rgba(0, 0, 0, 0.03)',
+            lineWidth: 0.5,
+            drawBorder: false
+          },
+          border: {
+            display: false
+          }
+        }
+      },
+      layout: {
+        padding: {
+          left: 0,
+          right: 0,
+          top: 2,
+          bottom: 0
+        }
+      },
+      elements: {
+        line: {
+          tension: 0.2,
+          borderWidth: 1,
+          fill: false
+        },
+        point: {
+          radius: 0,
+          hoverRadius: 2,
+        }
+      }
+    };
+  };
+
+  // Prepare datasets for historical charts
+  const prepareHistoricalChartData = (timestamps, values, label, color) => {
+    // Filter out null/NaN values and their corresponding timestamps
+    const validData = timestamps.map((time, index) => ({
+      time,
+      value: values[index]
+    })).filter(item => item.value !== undefined && !isNaN(item.value) && item.value !== null);
+    
+    // Log data for debugging
+    console.log(`Chart data for ${label}:`, validData.length, 'valid data points');
+    
+    return {
+      labels: validData.map(item => item.time),
+      datasets: [
+        {
+          label: label,
+          data: validData.map(item => item.value),
+          borderColor: color,
+          backgroundColor: `${color}10`, // Very light transparency
+          borderWidth: 1,
+          fill: false,
+          pointBorderWidth: 0
+        }
+      ]
+    };
+  };
+
+  // Handle BP data for chart
+  const prepareBPChartData = (timestamps, bpData) => {
+    // Filter out null/NaN values
+    const validData = timestamps.map((time, index) => ({
+      time,
+      systolic: bpData[index]?.systolic,
+      diastolic: bpData[index]?.diastolic
+    })).filter(item => 
+      item.systolic !== undefined && !isNaN(item.systolic) && item.systolic !== null && 
+      item.diastolic !== undefined && !isNaN(item.diastolic) && item.diastolic !== null
+    );
+    
+    // Log data for debugging
+    console.log('BP Chart data:', validData.length, 'valid data points');
+    
+    return {
+      labels: validData.map(item => item.time),
+      datasets: [
+        {
+          label: 'Systolic',
+          data: validData.map(item => item.systolic),
+          borderColor: 'rgb(255, 99, 132)',
+          backgroundColor: 'rgba(255, 99, 132, 0)',
+          borderWidth: 1,
+          fill: false,
+          pointBorderWidth: 0
+        },
+        {
+          label: 'Diastolic',
+          data: validData.map(item => item.diastolic),
+          borderColor: 'rgb(54, 162, 235)',
+          backgroundColor: 'rgba(54, 162, 235, 0)',
+          borderWidth: 1,
+          fill: false,
+          pointBorderWidth: 0
+        }
+      ]
+    };
+  };
 
   return (
     <div className="patient-detail">
@@ -277,7 +515,16 @@ const PatientDetail = () => {
       </div>
 
       <div className="vital-signs">
-        <h2>Vital Signs</h2>
+        <div className="vital-signs-header">
+          <h2>Vital Signs</h2>
+          <button 
+            className={`download-csv-btn ${isDownloading ? 'loading' : ''}`}
+            onClick={handleDownloadCSV}
+            disabled={isDownloading}
+          >
+            {isDownloading ? 'Downloading...' : 'Download Historical Data (CSV)'}
+          </button>
+        </div>
         <div className="vitals-grid">
           <div className="vital-card">
             <h3>Temperature</h3>
@@ -318,7 +565,9 @@ const PatientDetail = () => {
           <div className="vital-card">
             <h3>Average ECG</h3>
             <p className="value">
-              {patientData.vitals.avgEcg.toFixed(2)} mV
+              {typeof patientData.vitals.avgEcg === 'number' 
+                ? patientData.vitals.avgEcg.toFixed(2) 
+                : patientData.vitals.avgEcg} mV
             </p>
           </div>
 
@@ -345,6 +594,113 @@ const PatientDetail = () => {
             <p>No ECG data available</p>
           )}
         </div>
+      </div>
+
+      {/* Weekly Records Section */}
+      <div className="weekly-records-section">
+        <div className="section-header">
+          <h2>Vital Signs History</h2>
+          <button 
+            className="toggle-debug-btn"
+            onClick={() => setShowDebugInfo(!showDebugInfo)}
+          >
+            {showDebugInfo ? 'Hide Debug Info' : 'Show Debug Info'}
+          </button>
+        </div>
+        
+        {loadingHistorical ? (
+          <div className="loading-section">Loading historical data...</div>
+        ) : !historicalData ? (
+          <div className="error-section">No historical data available</div>
+        ) : (
+          <div className="historical-charts-container">
+            {/* Debug info for troubleshooting */}
+            {showDebugInfo && (
+              <div className="debug-info">
+                <p>Data: {historicalData.timestamps?.length || 0} pts</p>
+                <p>Temp: {historicalData.temperature?.filter(v => v !== null).length || 0}</p>
+                <p>HR: {historicalData.heartRate?.filter(v => v !== null).length || 0}</p>
+                <p>SpO2: {historicalData.spo2?.filter(v => v !== null).length || 0}</p>
+                <p>BP: {historicalData.bp?.filter(v => v.systolic !== null).length || 0}</p>
+              </div>
+            )}
+            
+            <div className="historical-charts-grid">
+              {/* Heart Rate Chart */}
+              <div className="chart-container">
+                <h3>Heart Rate (BPM)</h3>
+                <Line 
+                  options={getHistoricalChartOptions('', 'BPM', 'rgb(54, 162, 235)')}
+                  data={prepareHistoricalChartData(
+                    historicalData.timestamps, 
+                    historicalData.heartRate, 
+                    'Heart Rate',
+                    'rgb(54, 162, 235)'
+                  )}
+                />
+              </div>
+              
+              {/* Blood Pressure Chart */}
+              <div className="chart-container">
+                <h3>Blood Pressure (mmHg)</h3>
+                <Line 
+                  options={{
+                    ...getHistoricalChartOptions('', 'mmHg', 'rgb(153, 102, 255)'),
+                    plugins: {
+                      ...getHistoricalChartOptions('', 'mmHg', 'rgb(153, 102, 255)').plugins,
+                      legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                          boxWidth: 4,
+                          padding: 1,
+                          usePointStyle: true,
+                          pointStyle: 'circle',
+                          font: {
+                            size: 6
+                          }
+                        }
+                      }
+                    }
+                  }}
+                  data={prepareBPChartData(
+                    historicalData.timestamps, 
+                    historicalData.bp
+                  )}
+                />
+              </div>
+              
+              {/* Temperature Chart */}
+              <div className="chart-container">
+                <h3>Temperature (°C)</h3>
+                <Line 
+                  options={getHistoricalChartOptions('', '°C', 'rgb(255, 99, 132)')}
+                  data={prepareHistoricalChartData(
+                    historicalData.timestamps, 
+                    historicalData.temperature, 
+                    'Temperature',
+                    'rgb(255, 99, 132)'
+                  )}
+                />
+              </div>
+              
+              {/* SpO2 Chart */}
+              <div className="chart-container">
+                <h3>SpO2 (%)</h3>
+                <Line 
+                  options={getHistoricalChartOptions('', '%', 'rgb(75, 192, 192)')}
+                  data={prepareHistoricalChartData(
+                    historicalData.timestamps, 
+                    historicalData.spo2, 
+                    'SpO2',
+                    'rgb(75, 192, 192)'
+                  )}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Map Section */}
